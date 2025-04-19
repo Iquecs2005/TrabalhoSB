@@ -13,7 +13,7 @@ int gravacomp(int nstructs, void* valores, char* descritor, FILE* arquivo)
 	int i, j, indiceEstrutura = 0;
 	char hasInt;
 
-	fprintf(arquivo, "%uc", nstructs);
+	fprintf(arquivo, "%c", (unsigned char)nstructs);
 	for (i = 0; i < nstructs; i++)
 	{
 		j = 0;
@@ -25,36 +25,100 @@ int gravacomp(int nstructs, void* valores, char* descritor, FILE* arquivo)
 			{
 			case 'i':
 				indiceEstrutura = calculaIndice(indiceEstrutura, sizeof(int));
-				printf("%d %c\n", indiceEstrutura, 'i');
 				codificaInt((char*)valores + indiceEstrutura, descritor + j, arquivo);
 				indiceEstrutura += sizeof(int);
 				hasInt = 1;
 				break;
 			case 'u':
 				indiceEstrutura = calculaIndice(indiceEstrutura, sizeof(unsigned));
-				printf("%d %c\n", indiceEstrutura, 'u');
 				codificaU((char*)valores + indiceEstrutura, descritor + j, arquivo);
 				indiceEstrutura += sizeof(unsigned);
 				hasInt = 1;
 				break;
 			case 's':
-				printf("%d %c\n", indiceEstrutura, 's');
 				codificaString((char*)valores + indiceEstrutura, descritor + j, arquivo);
-				indiceEstrutura += (descritor[j + 1] - '0')*10 + descritor[j + 2] - '0';
+				indiceEstrutura += (descritor[j + 1] - '0') * 10 + descritor[j + 2] - '0';
 				j += 2;
 				break;
 			}
 			j++;
 		}
 
-		if(hasInt)
+		if (hasInt)
 			indiceEstrutura = calculaIndice(indiceEstrutura, sizeof(int));
 	}
 }
 
 void mostracomp(FILE* arquivo)
 {
+	int nEstruturas = 0;
+	unsigned char charLido;
 	
+	fscanf(arquivo, "%c", &nEstruturas);
+	printf("Estruturas: %u\n\n", nEstruturas);
+
+	for (int j = 0; j < nEstruturas; j++)
+	{
+		charLido = 0;
+
+		while (!(charLido & 0x80))
+		{
+			fscanf(arquivo, "%c", &charLido);
+
+			if (charLido & 0x40)
+			{
+				//Str
+				int tamanhoStr = charLido & 0x3f;
+				char caracterString;
+
+				printf("(str) ");
+
+				for (int i = 0; i < tamanhoStr; i++)
+				{
+					fscanf(arquivo, "%c", &caracterString);
+					printf("%c", caracterString);
+				}
+
+				printf("\n");
+			}
+			else if (charLido & 0x20)
+			{
+				int tamanhoInt = charLido & 0x1f;
+				unsigned char byteInt;
+				int numTotal = 0;
+
+				for (int i = 0; i < tamanhoInt; i++)
+				{
+					numTotal = numTotal << 8;
+					fscanf(arquivo, "%c", &byteInt);
+					numTotal += byteInt;
+				}
+
+				if (numTotal >> tamanhoInt - 1 & 0x80)
+				{
+					numTotal += 0xffffffff << tamanhoInt * 8;
+				}
+				printf("(int) %-11d (%08x)\n", numTotal, numTotal);
+			}
+			else
+			{
+				int tamanhoU = charLido & 0x1f;
+				unsigned char byteInt;
+				unsigned numTotal = 0;
+
+				for (int i = 0; i < tamanhoU; i++)
+				{
+					numTotal = numTotal << 8;
+					fscanf(arquivo, "%c", &byteInt);
+					numTotal += byteInt;
+				}
+
+				printf("(uns) %-11u (%08x)\n", numTotal, numTotal);
+			}
+		}
+
+		printf("\n");
+	}
 }
 
 int calculaIndice(int indiceAtual, int tamanhoCampo)
@@ -66,7 +130,7 @@ int calculaIndice(int indiceAtual, int tamanhoCampo)
 	{
 		return indiceAtual;
 	}
-	
+
 	indiceAtual = indiceAtual + tamanhoCampo - modulo;
 
 	return indiceAtual;
@@ -76,7 +140,7 @@ void codificaString(char* str, char* descritor, FILE* arquivo)
 {
 	unsigned char byteCabeca = 0x40, tamanhoStr = 0;
 
-	while(str[tamanhoStr] != '\0')
+	while (str[tamanhoStr] != '\0')
 	{
 		tamanhoStr++;
 	}
@@ -126,15 +190,12 @@ void codificaInt(int* num, char* descritor, FILE* arquivo)
 	byteCabeca += tamanhoInt;
 
 	fprintf(arquivo, "%c", byteCabeca);
-	printf("%x   ", byteCabeca);
 	for (int i = 0; i < tamanhoInt; i++)
 	{
 		byteShift = *num >> (tamanhoInt - 1 - i) * 8;
 		byteShift = byteShift & 0xFF;
-		printf("%x ", byteShift);
 		fprintf(arquivo, "%c", byteShift);
 	}
-	printf("\n");
 }
 
 void codificaU(unsigned int* num, char* descritor, FILE* arquivo)
@@ -167,13 +228,10 @@ void codificaU(unsigned int* num, char* descritor, FILE* arquivo)
 	byteCabeca += tamanhoInt;
 
 	fprintf(arquivo, "%c", byteCabeca);
-	printf("%x   ", byteCabeca);
 	for (int i = 0; i < tamanhoInt; i++)
 	{
 		byteShift = *num >> (tamanhoInt - 1 - i) * 8;
 		byteShift = byteShift & 0xFF;
-		printf("%x ", byteShift);
 		fprintf(arquivo, "%c", byteShift);
 	}
-	printf("\n");
 }
