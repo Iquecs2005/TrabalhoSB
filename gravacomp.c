@@ -25,13 +25,13 @@ int gravacomp(int nstructs, void* valores, char* descritor, FILE* arquivo)
 			{
 			case 'i':
 				indiceEstrutura = calculaIndice(indiceEstrutura, sizeof(int));
-				codificaInt((char*)valores + indiceEstrutura, descritor + j, arquivo);
+				codificaInt((int*)((char*)valores + indiceEstrutura), descritor + j, arquivo);
 				indiceEstrutura += sizeof(int);
 				hasInt = 1;
 				break;
 			case 'u':
 				indiceEstrutura = calculaIndice(indiceEstrutura, sizeof(unsigned));
-				codificaU((char*)valores + indiceEstrutura, descritor + j, arquivo);
+				codificaU((unsigned*)((char*)valores + indiceEstrutura), descritor + j, arquivo);
 				indiceEstrutura += sizeof(unsigned);
 				hasInt = 1;
 				break;
@@ -51,7 +51,7 @@ int gravacomp(int nstructs, void* valores, char* descritor, FILE* arquivo)
 
 void mostracomp(FILE* arquivo)
 {
-	int nEstruturas = 0;
+	unsigned char nEstruturas = 0;
 	unsigned char charLido;
 	
 	fscanf(arquivo, "%c", &nEstruturas);
@@ -94,9 +94,9 @@ void mostracomp(FILE* arquivo)
 					numTotal += byteInt;
 				}
 
-				if (numTotal >> tamanhoInt - 1 & 0x80)
+				if (tamanhoInt != 4 && (numTotal >> (tamanhoInt - 1)*8) & 0x80)
 				{
-					numTotal += 0xffffffff << tamanhoInt * 8;
+					numTotal += 0xffffffff << (tamanhoInt * 8);
 				}
 				printf("(int) %-11d (%08x)\n", numTotal, numTotal);
 			}
@@ -123,7 +123,7 @@ void mostracomp(FILE* arquivo)
 
 int calculaIndice(int indiceAtual, int tamanhoCampo)
 {
-	int indiceResultado, modulo;
+	int modulo;
 
 	modulo = indiceAtual % tamanhoCampo;
 	if (modulo == 0)
