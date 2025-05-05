@@ -69,7 +69,7 @@ int gravacomp(int nstructs, void* valores, char* descritor, FILE* arquivo)
 			j++;
 		}
 
-		//se tiver lidando com um inteiro, chama uma funcao de apoio para calcular o indice por conta do padding necessario
+		//se tiver lidando com um inteiro na estrutura, chama uma funcao de apoio para calcular o indice por conta do padding externo necessario
 		if (hasInt)
 			indiceEstrutura = calculaIndice(indiceEstrutura, sizeof(int));
 	}
@@ -90,7 +90,7 @@ void mostracomp(FILE* arquivo)
 	{
 		charLido = 0;
 
-		//continua o loop ate o bit que indica se a estrutura e a ultima for 1 
+		//continua o loop ate o bit que indica se o campo estrutura eh o ultimo for 1 
 		while (!(charLido & 0x80))
 		{
 			fscanf(arquivo, "%c", &charLido);
@@ -160,6 +160,7 @@ void mostracomp(FILE* arquivo)
 	}
 }
 
+//Calcula o indice da estrutura, respeitando o padding
 int calculaIndice(int indiceAtual, int tamanhoCampo)
 {
 	int modulo;
