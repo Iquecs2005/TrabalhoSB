@@ -182,22 +182,27 @@ int codificaString(char* str, char* descritor, FILE* arquivo)
 	unsigned char byteCabeca = 0x40, tamanhoStr = 0;
 	int err;
 
+	//percorre a string ate encontrar o /0 para descobrir o tamanho exato da string
 	while (str[tamanhoStr] != '\0')
 	{
 		tamanhoStr++;
 	}
 
+	//checa se e o ultimo campo da estrutura e depois adiciona o tamanho da estrutura calculado anteriormente ao byte
 	if (descritor[3] == '\0')
 	{
 		byteCabeca += 0x80;
 	}
 	byteCabeca += tamanhoStr;
 
+	//adiciona o byte cabeca do campo ao arquivo
 	err = fprintf(arquivo, "%c", byteCabeca);
 	if (err < 0)
 	{
 		return -1;
 	}
+
+	//grava caractere a caractere 
 	for (int i = 0; i < tamanhoStr; i++)
 	{
 		err = fprintf(arquivo, "%c", str[i]);
@@ -216,11 +221,13 @@ int codificaInt(int* num, char* descritor, FILE* arquivo)
 	int byteShift;
 	int err;
 
+	//checa se e o ultimo campo da estrutura
 	if (descritor[1] == '\0')
 	{
 		byteCabeca += 0x80;
 	}
 
+	//checa quantos bytes serao necessarios para representar o numero
 	if (*num <= 0x7f && *num >= -0x80)
 	{
 		tamanhoInt = 1;
@@ -240,11 +247,14 @@ int codificaInt(int* num, char* descritor, FILE* arquivo)
 
 	byteCabeca += tamanhoInt;
 
+	//adiciona o byte cabeca do campo ao arquivo
 	err = fprintf(arquivo, "%c", byteCabeca);
 	if (err < 0)
 	{
 		return -1;
 	}
+	
+	//adiciona byte a byte ao numero e grava no arquivo, ja tratando do caso do numero ser negativo
 	for (int i = 0; i < tamanhoInt; i++)
 	{
 		byteShift = *num >> (tamanhoInt - 1 - i) * 8;
@@ -264,11 +274,13 @@ int codificaU(unsigned int* num, char* descritor, FILE* arquivo)
 	int byteShift;
 	int err;
 
+	//checa se e o ultimo campo da estrutura
 	if (descritor[1] == '\0')
 	{
 		byteCabeca += 0x80;
 	}
 
+	//checa quantos bytes serao necessarios para representar o numero
 	if (*num <= 0xff)
 	{
 		tamanhoInt = 1;
@@ -288,11 +300,14 @@ int codificaU(unsigned int* num, char* descritor, FILE* arquivo)
 
 	byteCabeca += tamanhoInt;
 
+	//adiciona o byte cabeca do campo ao arquivo
 	err = fprintf(arquivo, "%c", byteCabeca);
 	if (err < 0)
 	{
 		return -1;
 	}
+
+	//adiciona byte a byte ao numero e grava no arquivo
 	for (int i = 0; i < tamanhoInt; i++)
 	{
 		byteShift = *num >> (tamanhoInt - 1 - i) * 8;
