@@ -15,5 +15,13 @@ int main(int argc, char* argv[]) {
     }
     /* compila a fun��o SBas */
     funcaoSBas = peqcomp(myfp, codigo);
+    int i = 0;
+    while (codigo[i] != 0xc3)
+    {
+        printf("%02x ", codigo[i]);
+        i += 1;
+    }
+    printf("%02x\n", codigo[i]);
+    printf("%d\n", funcaoSBas());
     fclose(myfp);
 }
