@@ -1,180 +1,299 @@
 #include "peqcomp.h"
+#include <stdlib.h>
 
 #define DEBUG
 
-void OnReturn(FILE* f, unsigned char codigo[]);
-int OnVariable(FILE* f, unsigned char* codigo);
-void OnEnter(unsigned char* codigo);
-void WriteIntLittleEndien(unsigned char* codigo, unsigned int n);
+typedef struct filaJump FilaJump;
+struct filaJump
+{
+	unsigned char* ptn;
+	char linha;
+	FilaJump* prox;
+};
+
+FilaJump* listaJumps;
+
+unsigned char* vLinhasSBas[30];
+unsigned char* jumps[30];
+int nJumps = 0;
+int linhaSBas;
+
+unsigned char* pontAtual;
+
+void OnEnter();
+void OnVariable(FILE* f);
+void Att(int nv1, char demarcador, int nv2);
+void Expr(int vResultado, char def1, int v1, char def2, int v2, char operador);
+void OnReturn(FILE* f);
+void WriteIntLittleEndian(unsigned int n);
 
 funcp peqcomp(FILE* f, unsigned char codigo[])
 {
-	unsigned char* pontAtual = codigo;
 	char comando;
 
-	OnEnter(pontAtual);
-	pontAtual += 4;
+	listaJumps = createList();
+
+	pontAtual = codigo;
+	linhaSBas = 0;
+
+	OnEnter();
 
 	comando = fgetc(f);
 	while (comando != EOF)
 	{
+		vLinhasSBas[linhaSBas] = pontAtual; 
 		switch (comando)
 		{
 		case 'r': 
 		{
-			OnReturn(f, pontAtual);
-			pontAtual += 7;
+			OnReturn(f);
 			break;
 		}
 		case 'v':
 		{
-			pontAtual += OnVariable(f, pontAtual);
+			OnVariable(f);
+			break;
+		}
+		case 'i':
+		{
+			OnCondition(f);
 			break;
 		}
 		default:
 			break;
 		}
+		linhaSBas++;
 		comando = fgetc(f);
 	}
 
 	return (funcp)codigo;
 }
 
-void OnEnter(unsigned char* codigo)
+void OnEnter()
 {
-	unsigned char codigoRetorno[] = {0x55, 0x48, 0x89, 0xe5};
+	//TO DO: O valor Ox14 deve ser o valor correto do RA
+	//push   %rbp
+	//mov    %rsp,%rbp
+   	//sub    $0x14,%rsp
+	unsigned char codigoRetorno[] = {0x55, 0x48, 0x89, 0xe5, 0x48, 0x83, 0xec, 0x14};
 
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 8; i++)
 	{
-		codigo[i] = codigoRetorno[i];
+		*pontAtual++ = codigoRetorno[i];
 	}
 }
 
-int OnVariable(FILE* f, unsigned char* codigo)
+void OnVariable(FILE* f)
 {
-	unsigned char codigoRetorno[] = {0xb8, 0x00, 0x00, 0x00, 0x00, 0xc9, 0xc3};
-	int nv1, nv2, indiceAtual = 0;
-	char operando, vOuC;
+	int nv1, nv2;
+	char operando;
 
 	fscanf(f, "%d %c", &nv1, &operando);
 
 	if (operando == ':')
 	{
 		//variable assignement
-
 		fscanf(f, " %c%d", &operando, &nv2);
-
-		if (operando == '$')
-		{
-			//variable assignement with a constant
-			if (nv1 == 1)
-			{
-				//movl $const, %eax
-				codigo[indiceAtual++] = 0xb9;
-			}
-			else
-			{
-				//movl $const, %r__d
-				codigo[indiceAtual++] = 0x41;
-
-				if (nv1 == 2)
-				{
-					//%r8d
-					codigo[indiceAtual++] = 0xb8;
-				}
-				else if (nv1 == 3)
-				{
-					//%r9d
-					codigo[indiceAtual++] = 0xb9;
-				}
-				else if (nv1 == 4)
-				{
-					//%r10d
-					codigo[indiceAtual++] = 0xba;
-				}
-				else
-				{
-					//%r11d
-					codigo[indiceAtual++] = 0xbb;
-				}
-			}
-			
-			//Writes constant
-			WriteIntLittleEndien(codigo + indiceAtual, nv2);
-			indiceAtual += 4;
-		}
-		else
-		{
-
-		}
+		Att(nv1, operando, nv2);
 	}
-
-	return indiceAtual;
+	else if (operando == '=')
+	{
+		int nv3;
+		char def1, def2;
+		fscanf(f, " %c%d %c %c%d", &def1, &nv2, &operando, &def2, &nv3);
+		Expr(nv1, def1, nv2, def2, nv3, operando);
+	}
 }
 
-void OnReturn(FILE* f, unsigned char* codigo)
+void Att(int nv1, char demarcador, int nv2)
 {
-	char constante;
-	int indexAtual = 0, valorRet;
-
-	fscanf(f, "et %c%d\n", &constante, &valorRet);
-
-	if (constante == '$')
+	if (demarcador == '$')
 	{
-		//movl $const, %eax
-		codigo[indexAtual++] = 0xb8;
-		WriteIntLittleEndien(codigo + indexAtual, valorRet);
-		indexAtual += 4;
+		//movl $nv2, -4*nv1(%rbp)
+		*pontAtual++ = 0xc7;
+		*pontAtual++ = 0x45;
+		*pontAtual++ = -(4*nv1);
+		WriteIntLittleEndian(nv2);
+	}
+	else if (demarcador == 'v')
+	{
+		//movl -4*nv2(rbp), %eax
+		*pontAtual++ = 0x8b;
+		*pontAtual++ = 0x45;
+		*pontAtual++ = -(4*nv2);
+		//movl %eax, -4*nv2(rbp)
+		*pontAtual++ = 0x89;
+		*pontAtual++ = 0x45;
+		*pontAtual++ = -(4*nv1);
 	}
 	else
 	{
-		if (valorRet == 1)
+		*pontAtual++ = 0x89;
+		if (nv2 == 1)
 		{
-			//movl %ecx, %eax
-			codigo[indexAtual++] = 0x89;
-			codigo[indexAtual++] = 0xc8;
+			//movl %edi,-nv1(%rbp)
+			*pontAtual++ = 0x7d;
 		}
-		else if (valorRet == 2)
+		else if (nv2 == 2)
 		{
-			//mov %r8d,%eax
-			codigo[indexAtual++] = 0x44;
-			codigo[indexAtual++] = 0x89;
-			codigo[indexAtual++] = 0xc0;
-		}
-		else if (valorRet == 3)
-		{
-			//mov %r9d,%eax
-			codigo[indexAtual++] = 0x44;
-			codigo[indexAtual++] = 0x89;
-			codigo[indexAtual++] = 0xc8;
-		}
-		else if (valorRet == 4)
-		{
-			//mov %r10d,%eax
-			codigo[indexAtual++] = 0x44;
-			codigo[indexAtual++] = 0x89;
-			codigo[indexAtual++] = 0xd0;
+			//movl %esi,-nv1(%rbp)
+			*pontAtual++ = 0x75;
 		}
 		else
 		{
-			//mov %r11d,%eax
-			codigo[indexAtual++] = 0x44;
-			codigo[indexAtual++] = 0x89;
-			codigo[indexAtual++] = 0xd8;
+			//movl %edx,-nv1(%rbp)
+			*pontAtual++ = 0x55;
 		}
+		*pontAtual++ = -(4*nv1);
+	}
+}
+
+void Expr(int vResultado, char def1, int v1, char def2, int v2, char operador)
+{
+	if (def1 == '$')
+	{
+		//movl $const, %eax
+		*pontAtual++ = 0xb8;
+		WriteIntLittleEndian(v1);
+	}
+	else
+	{
+		//movl -4*valorRet(rbp), %eax
+		*pontAtual++ = 0x8b;
+		*pontAtual++ = 0x45;
+		*pontAtual++ = -(4*v1);
+	}
+
+	if (def2 == '$')
+	{
+		//movl $const, %ecx
+		*pontAtual++ = 0xb9;
+		WriteIntLittleEndian(v2);
+	}
+	else
+	{
+		//movl -4*valorRet(rbp), %ecx
+		*pontAtual++ = 0x8b;
+		*pontAtual++ = 0x4d;
+		*pontAtual++ = -(4*v2);
+	}
+	
+	switch (operador)
+	{
+		case '+':
+			//addl %ecx, %eax
+			*pontAtual++ = 0x01;
+			*pontAtual++ = 0xc8;
+			break;
+		case '-':
+			//subl %ecx, %eax
+			*pontAtual++ = 0x29;
+			*pontAtual++ = 0xc8;
+			break;
+		case '*':
+			//imull %ecx, %eax
+			*pontAtual++ = 0x0f;
+			*pontAtual++ = 0xaf;
+			*pontAtual++ = 0xc1;
+			break;
+	}
+
+	//movl %eax,-4*vResultado(%rbp)
+	*pontAtual++ = 0x89;
+	*pontAtual++ = 0x45;
+	*pontAtual++ = -(4*vResultado);
+}
+
+void OnReturn(FILE* f)
+{
+	char constante;
+	int valorRet;
+
+	fscanf(f, "et %c%d\n", &constante, &valorRet);
+
+	//movl
+	if (constante == '$')
+	{
+		//movl $const, %eax
+		*pontAtual++ = 0xb8;
+		WriteIntLittleEndian(valorRet);
+	}
+	else
+	{
+		//movl -4*valorRet(rbp), %eax
+		*pontAtual++ = 0x8b;
+		*pontAtual++ = 0x45;
+		*pontAtual++ = -(4*valorRet);
 	}
 
 	//leave
-	codigo[indexAtual++] = 0xc9;
+	*pontAtual++  = 0xc9;
 	//ret
-	codigo[indexAtual++] = 0xc3; 
+	*pontAtual++  = 0xc3; 
 }
 
-void WriteIntLittleEndien(unsigned char* codigo, unsigned int n)
+void OnCondition(FILE* f)
 {
-	//Writes an integer into an array in Little Endien
+	int nV, nLinha;
+
+	fscanf(f, "flez v%d %d\n", &nV, &nLinha);
+
+	//cmpl $0x0,-nV(%rbp)
+	*pontAtual++  = 0x83;
+	*pontAtual++  = 0x7d;
+	*pontAtual++  = -(4*nV);
+	*pontAtual++  = 0x00;
+	// jg
+	*pontAtual++  = 0x7f;
+	//offset
+	jumps[nJumps] = pontAtual;
+	*pontAtual++ = 0x00;
+	//*pontAtual++  = 0xcf; 
+
+
+	nJumps++;
+}
+
+void WriteIntLittleEndian(unsigned int n)
+{
+	//Writes an integer into an array in Little Endian
 	for (int i = 0; i < 4; i++)
 	{
-		codigo[i] = 0xff & (n >> (i * 8));
+		*pontAtual++ = 0xff & (n >> (i * 8));
 	}
+}
+
+void Linkedicao()
+{
+
+}
+
+FilaJump* createList()
+{
+	return NULL;
+}
+
+FilaJump* appendList(FilaJump* list, char* ptn, char linha)
+{
+	FilaJump* current = list, * prev = NULL, * newElement;
+
+	while (current != NULL)
+	{
+		prev = current;
+		current = current->prox;
+	}
+
+	newElement = (FilaJump*)malloc(sizeof(FilaJump));
+	if (newElement == NULL)
+	{
+		return NULL;
+	}
+	newElement->ptn = ptn;
+	newElement->prox = NULL;
+
+	if (prev != NULL)
+	{
+		
+	}
+
 }

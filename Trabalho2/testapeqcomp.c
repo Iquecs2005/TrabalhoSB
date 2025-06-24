@@ -4,7 +4,6 @@ int main(int argc, char* argv[]) {
     FILE* myfp;
     unsigned char codigo[100];
     funcp funcaoSBas;
-    int res;
 
     /* Abre o arquivo fonte */
     myfp = fopen("programa.txt", "r");
@@ -22,6 +21,6 @@ int main(int argc, char* argv[]) {
         i += 1;
     }
     printf("%02x\n", codigo[i]);
-    printf("%d\n", funcaoSBas());
+    printf("%d\n", funcaoSBas(1,1,2));
     fclose(myfp);
 }
