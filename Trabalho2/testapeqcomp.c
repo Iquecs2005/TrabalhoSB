@@ -15,13 +15,22 @@ int main(int argc, char* argv[]) {
     }
     /* compila a fun��o SBas */
     funcaoSBas = peqcomp(myfp, codigo);
-    int i = 0;
-    while (i < 50)
+    // int i = 0;
+    // while (i < 50)
+    // {
+    //     printf("%02x ", codigo[i]);
+    //     i += 1;
+    // }
+    // printf("%02x\n", codigo[i]);
+    int i = 1;
+    int args[] = {0, 0, 0};
+    while (i < argc)
     {
-        printf("%02x ", codigo[i]);
-        i += 1;
+        args[i-1] = atoi(argv[i]);
+        i++;
+        /* code */
     }
-    printf("%02x\n", codigo[i]);
-    printf("%d\n", funcaoSBas(1, 2));
+    
+    printf("%d\n", funcaoSBas(args[0], args[1], args[2]));
     fclose(myfp);
 }
