@@ -4,8 +4,6 @@
 #include "peqcomp.h"
 #include <stdlib.h>
 
-#define DEBUG
-
 //Fila que guarda todas ocorrencias do jump
 typedef struct filaJump FilaJump;
 struct filaJump
@@ -20,6 +18,7 @@ FilaJump* listaJumps;
 //Array contendo todas a correspondencia entre as linhas do arquivoSbas (Sendo a linha o indice) e o index da primeira instrucao hexadecimal da linha
 unsigned char vLinhasSBas[30];
 
+//Ponteiro atual do codigo
 unsigned char* pontAtual;
 
 void OnEnter();
