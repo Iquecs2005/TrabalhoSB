@@ -86,11 +86,10 @@ void OnEnter()
 {
 	//Chamado no inicio do codigo Sbas
 
-	//TO DO: O valor Ox14 deve ser o valor correto do RA
 	//push   %rbp
 	//mov    %rsp,%rbp
-   	//sub    $0x14,%rsp
-	unsigned char codigoRetorno[] = {0x55, 0x48, 0x89, 0xe5, 0x48, 0x83, 0xec, 0x14};
+   	//sub    $0x20,%rsp
+	unsigned char codigoRetorno[] = {0x55, 0x48, 0x89, 0xe5, 0x48, 0x83, 0xec, 0x20};
 
 	for (int i = 0; i < 8; i++)
 	{

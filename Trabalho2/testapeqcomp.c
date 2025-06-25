@@ -3,11 +3,13 @@
 
 int main(int argc, char* argv[]) 
 {
+    char* nomeArq;
     FILE* myfp;
     unsigned char codigo[100];
     funcp funcaoSBas;
 
-    myfp = fopen("programa.txt", "r");
+    nomeArq = argv[1];
+    myfp = fopen(nomeArq, "r");
     if (myfp == NULL) 
     {
         perror("Falha na abertura do arquivo fonte");
@@ -16,11 +18,11 @@ int main(int argc, char* argv[])
 
     funcaoSBas = peqcomp(myfp, codigo);
 
-    int i = 1;
+    int i = 2;
     int args[] = {0, 0, 0};
     while (i < argc)
     {
-        args[i-1] = atoi(argv[i]);
+        args[i-2] = atoi(argv[i]);
         i++;
     }
     
