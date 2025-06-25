@@ -7,16 +7,13 @@ typedef struct filaJump FilaJump;
 struct filaJump
 {
 	unsigned char* ptn;
-	char linha;
+	int linha;
 	FilaJump* prox;
 };
 
 FilaJump* listaJumps;
 
-unsigned char* vLinhasSBas[30];
-unsigned char* jumps[30];
-int nJumps = 0;
-int linhaSBas;
+unsigned char vLinhasSBas[30];
 
 unsigned char* pontAtual;
 
@@ -25,23 +22,29 @@ void OnVariable(FILE* f);
 void Att(int nv1, char demarcador, int nv2);
 void Expr(int vResultado, char def1, int v1, char def2, int v2, char operador);
 void OnReturn(FILE* f);
+void OnCondition(FILE* f);
 void WriteIntLittleEndian(unsigned int n);
+void Linkedicao(unsigned char codigo[]);
+FilaJump* createList();
+int appendList(unsigned char* ptn, int linha);
+void freeList();
 
 funcp peqcomp(FILE* f, unsigned char codigo[])
 {
+	int linha;
 	char comando;
-
+	
 	listaJumps = createList();
-
+	
 	pontAtual = codigo;
-	linhaSBas = 0;
-
+	linha = 0;
+	
 	OnEnter();
-
+	
 	comando = fgetc(f);
 	while (comando != EOF)
 	{
-		vLinhasSBas[linhaSBas] = pontAtual; 
+		vLinhasSBas[linha] = (unsigned char)(pontAtual - codigo); 
 		switch (comando)
 		{
 		case 'r': 
@@ -62,10 +65,13 @@ funcp peqcomp(FILE* f, unsigned char codigo[])
 		default:
 			break;
 		}
-		linhaSBas++;
+		linha++;
 		comando = fgetc(f);
 	}
 
+	Linkedicao(codigo);
+
+	freeList();
 	return (funcp)codigo;
 }
 
@@ -88,19 +94,19 @@ void OnVariable(FILE* f)
 	int nv1, nv2;
 	char operando;
 
-	fscanf(f, "%d %c", &nv1, &operando);
+	fscanf(f, "%d %c ", &nv1, &operando);
 
 	if (operando == ':')
 	{
 		//variable assignement
-		fscanf(f, " %c%d", &operando, &nv2);
+		fscanf(f, " %c%d\n", &operando, &nv2);
 		Att(nv1, operando, nv2);
 	}
 	else if (operando == '=')
 	{
 		int nv3;
 		char def1, def2;
-		fscanf(f, " %c%d %c %c%d", &def1, &nv2, &operando, &def2, &nv3);
+		fscanf(f, " %c%d %c %c%d\n", &def1, &nv2, &operando, &def2, &nv3);
 		Expr(nv1, def1, nv2, def2, nv3, operando);
 	}
 }
@@ -243,15 +249,16 @@ void OnCondition(FILE* f)
 	*pontAtual++  = 0x7d;
 	*pontAtual++  = -(4*nV);
 	*pontAtual++  = 0x00;
-	// jg
-	*pontAtual++  = 0x7f;
+	// jle
+	*pontAtual++  = 0x0f;
+	*pontAtual++  = 0x8e;
 	//offset
-	jumps[nJumps] = pontAtual;
+	appendList(pontAtual, nLinha);
 	*pontAtual++ = 0x00;
-	//*pontAtual++  = 0xcf; 
-
-
-	nJumps++;
+	*pontAtual++ = 0x00;
+	*pontAtual++ = 0x00;
+	*pontAtual++ = 0x00;
+	//*pontAtual++  = 0xcf;
 }
 
 void WriteIntLittleEndian(unsigned int n)
@@ -263,9 +270,20 @@ void WriteIntLittleEndian(unsigned int n)
 	}
 }
 
-void Linkedicao()
+void Linkedicao(unsigned char codigo[])
 {
+	FilaJump* current = listaJumps;
 
+	while (current != NULL)
+	{
+		//Calcula o offset
+		//vLinhasSBas[current->linha - 1] representa o endereco de destino
+		//(current->ptn + 4 - codigo) representa o endereco do jump
+		unsigned int offset = vLinhasSBas[current->linha - 1] - (current->ptn + 4 - codigo);
+		pontAtual = current->ptn;
+		WriteIntLittleEndian(offset);
+		current = current->prox;
+	}
 }
 
 FilaJump* createList()
@@ -273,9 +291,9 @@ FilaJump* createList()
 	return NULL;
 }
 
-FilaJump* appendList(FilaJump* list, char* ptn, char linha)
+int appendList(unsigned char* ptn, int linha)
 {
-	FilaJump* current = list, * prev = NULL, * newElement;
+	FilaJump* current = listaJumps, * prev = NULL, * newElement;
 
 	while (current != NULL)
 	{
@@ -286,14 +304,32 @@ FilaJump* appendList(FilaJump* list, char* ptn, char linha)
 	newElement = (FilaJump*)malloc(sizeof(FilaJump));
 	if (newElement == NULL)
 	{
-		return NULL;
+		return 1;
 	}
 	newElement->ptn = ptn;
+	newElement->linha = linha;
 	newElement->prox = NULL;
 
 	if (prev != NULL)
 	{
-		
+		prev->prox = newElement;
+	}
+	else
+	{
+		listaJumps = newElement;
 	}
 
+	return 0;
+}
+
+void freeList()
+{
+	FilaJump* current = listaJumps, * next = NULL;
+
+	while (current != NULL)
+	{
+		next = current->prox;
+		free(current);
+		current = next;
+	}
 }
