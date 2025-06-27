@@ -1,3 +1,6 @@
+/* Henrique Carvalho e Silva 2410365 3WA */
+/* Joao Miguel Rodrigues Montenegro da Franca 2411289 3WA */
+
 #include "peqcomp.h"
 #include <stdlib.h>
 
