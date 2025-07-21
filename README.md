@@ -1,5 +1,6 @@
 Projetos realizados para a disciplina INF1018 - Software Básico
-Membros:
+
+Integrantes dos Projetos:
 - Henrique Carvalho e Silva
 - João Miguel Franca Rodrigues Montenegro
 
